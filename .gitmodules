@@ -1,0 +1,3 @@
+[submodule "movieposters"]
+	path = movieposters
+	url = https://github.com/thomasbreydo/movieposters.git
