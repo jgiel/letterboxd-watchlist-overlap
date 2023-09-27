@@ -1,5 +1,6 @@
 # Letterboxd Watchlist Overlap
 Python program that takes multiple Letterboxd usernames and displays the overlap between each of their watchlists.
+![alt text](https://github.com/jgiel/letterboxd-watchlist-overlap/blob/main/sample-output.png?raw=true)
 
 # Execution
 To install the necessary packages, run  
