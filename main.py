@@ -1,7 +1,7 @@
 #to do:
-#sort by runtime, year, etc.
-#fix text errors for special characters (salo)
-#handle incorrect lb username
+# sort by runtime, year, etc.
+# allow args to be processed via url
+# handle incorrect lb username
 import urllib.request
 from flask import Flask, request, render_template, redirect
 from waitress import serve
@@ -154,10 +154,10 @@ def getMovieInfo(movieLink, showPosters):
         if nameIndex == -1:
             raise Exception
         name = htmlString[nameIndex:]
-        nameEndIndex = name.find(' (')
-        if name[nameEndIndex + len(' (xxxx')] != ')': #checks that this is year paren, not paren in title
-            nameEndIndex = name[nameEndIndex+1:].find(' (')
-        name = name[:name.find(' (')] # (?) change to :nameEndIndex
+        nameEndIndex = name.find(' (') #in format film_title (year)
+        if name[nameEndIndex + len(' (xxxx')] != ')': #checks that this is year paren, not paren in title (e.g. film_title (film_title_cont) (year))
+            nameEndIndex = name[nameEndIndex+1:].find(' (') + len(name[:nameEndIndex+1]) #find index of next occurance of '('
+        name = name[:nameEndIndex]  
     except Exception as e:
         print("name error: " +str(e)+" for "+name)
         name = "Name not found"
@@ -208,7 +208,9 @@ def refresh():
     form = open('templates/form.html', 'r')
     formString = form.read()
     form.close()
-    return render_template('form.html')
+
+    #return render_template('form.html') # doesn't refresh when form.html is changed
+    return open('templates/form.html').read()
 
 #takes user input for usernames and finds displays watchlist overlap
 @app.route('/showoverlap', methods = ["POST"])
@@ -221,17 +223,22 @@ def enter():
         else:
             showPosters = False
         
-        #get all usernames
+        
+        print('\nUsernames:') # console output
         for i in range(userAmount):
-            usernames.append(request.form.get("usr"+str(i+1)))
-
+            username = request.form.get("usr"+str(i+1))
+            usernames.append(username)
+            print(username) # console output
+        print()
+        
         #gets overlap of movies as array of html chunks
         intersection = getOverlap(usernames)
         
         #builds html from overlap
         buildOverlapHTML(intersection, usernames, showPosters)
         
-        return render_template("watchlist.html") #display watchlist
+        #return render_template("watchlist.html") #doesn't refresh watchlist.html when user goes back to initial form and enters new usernames
+        return open('templates/watchlist.html').read()
     return redirect('/')
 
 #adds text box for another user
