@@ -11,6 +11,6 @@ To install the necessary packages, run
 Then run with   
 `python3 main.py `  
 
-Enter `localhost:8080` in your browser to go to the local webpage, then enter your desired amount of usernames
+Enter `localhost:8080` in your browser to go to the local webpage, then enter your desired usernames
 - If you choose to display posters, please be aware that it may take a while to load
 
