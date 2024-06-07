@@ -3,9 +3,10 @@
 #fix text errors for special characters (salo)
 #handle incorrect lb username
 import urllib.request
+from bs4 import BeautifulSoup
 from flask import Flask, request, render_template, redirect
 from waitress import serve
-from movieposters.movieposters import imdbapi
+from movieposters import imdbapi
 
 
 TEMPLATES_AUTO_RELOAD = True
@@ -14,57 +15,51 @@ port = 8080
 
 app = Flask(__name__)
 
-#returns array of each movie's HTML contents in the user's Letterboxd watchlist
-#(return html content instead of name because need movie's letterboxd link located within HTML content as well)
-def getWatchlist(username):
-    currentPage = 1
-    watchlist = []
-    done = False
-    beginKey = b'<li' #beginning of each movie entry on watchlist
-    endKey = b'</li>' #end of each movie entry block on watchlist
 
-    #loops through each page of watchlist
-    while not done:
+def get_watchlist(username: str):
+    """
+    Obtains list of all suffix links to movies in user's watchlist.
+
+    Parameters:
+        username: Username of Letterboxd user
+
+    Returns:
+        watchlist: List of Letterboxd links to films in user's watchlist
+    """
+
+    current_page = 1
+
+
+    watchlist = []
+
+    while True:
         #create request to letterboxd url HTML
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'}
-        url = 'https://www.letterboxd.com/'+username+'/watchlist/page/'+str(currentPage)+'/'
-        req = urllib.request.Request(url = url, headers=headers)
+        url = 'https://www.letterboxd.com/'+username+'/watchlist/page/'+str(current_page)+'/'
+        req = request.Request(url = url, headers=headers)
+        html = request.urlopen(req).read()
 
-        #obtain HTML contents of watchlist
-        html = urllib.request.urlopen(req)
-        htmlString = html.read()
-        htmlString = htmlString[htmlString.find(b'poster-list'): htmlString.find(b'pagination')]  #change html string to only include the poster list
+        # parse with bs4
+        soup = BeautifulSoup(html, 'html.parser')
+        containers = soup.find_all("li", class_="poster-container")
+        for container in containers:
+            watchlist.append("letterboxd.com"+container.find('div')["data-target-link"])
+            print(container.find('div')["data-target-link"])
+        
+        if not containers:
+            return watchlist
+        else:
+            current_page += 1
+            print("page " + str(current_page) + "\n")
 
-        #find beginning first movie entry
-        beginIndex = htmlString.find(beginKey)
-        if beginIndex == -1: #if first movie not found, page must be empty
-            done = True
-        else: #otherwise, scrape each movie
-            pageEmpty = False
-            while not pageEmpty:
-                #get ending index of movie entry
-                endIndex = htmlString.find(endKey)
 
-                movie = htmlString[beginIndex:endIndex+1].decode("utf-8")+ '</li> \n' #get html chunk containing movie info
-                
-                watchlist.append(movie) #add to watchlist               
-                
-                htmlString = htmlString[endIndex+3:] #get rid of movie from html string before moving on
-
-                #get index of next movie (if doesnt exist, page empty)
-                beginIndex = htmlString.find(beginKey)
-                if beginIndex == -1: #if no next movie, then exit while loop and get new url for next page
-                    pageEmpty = True
-                    currentPage+=1
-                
-    return watchlist
 
 #returns overlap of watchlists
 def getOverlap(usernames):
     #get list of watchlists
     watchlists = []
     for i in range(len(usernames)):
-        watchlists.append(getWatchlist(usernames[i]))
+        watchlists.append(get_watchlist(usernames[i]))
 
     #find overlap
     overlap = []
