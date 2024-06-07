@@ -2,7 +2,7 @@
 #sort by runtime, year, etc.
 #fix text errors for special characters (salo)
 #handle incorrect lb username
-import urllib.request
+from urllib.request import Request, urlopen
 from bs4 import BeautifulSoup
 from flask import Flask, request, render_template, redirect
 from waitress import serve
@@ -25,6 +25,7 @@ def get_watchlist(username: str):
 
     Returns:
         watchlist: List of Letterboxd links to films in user's watchlist
+    
     """
 
     current_page = 1
@@ -36,8 +37,8 @@ def get_watchlist(username: str):
         #create request to letterboxd url HTML
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'}
         url = 'https://www.letterboxd.com/'+username+'/watchlist/page/'+str(current_page)+'/'
-        req = request.Request(url = url, headers=headers)
-        html = request.urlopen(req).read()
+        req = Request(url = url, headers=headers)
+        html = urlopen(req).read()
 
         # parse with bs4
         soup = BeautifulSoup(html, 'html.parser')
@@ -55,7 +56,7 @@ def get_watchlist(username: str):
 
 
 #returns overlap of watchlists
-def getOverlap(usernames):
+def get_overlap(usernames):
     #get list of watchlists
     watchlists = []
     for i in range(len(usernames)):
@@ -72,7 +73,7 @@ def getOverlap(usernames):
 
 
 
-def buildOverlapHTML(list, usernames, showPosters):
+def build_overlap_html(list, usernames, showPosters):
     #open outline and watchlist htmls
     outlineFile = open('templates/watchlistOutline.html', "r")
     outputHTML = open('templates/watchlist.html', 'w')
@@ -101,7 +102,7 @@ def buildOverlapHTML(list, usernames, showPosters):
         movieLink = "https://letterboxd.com" + movieLink[:movieLink.find('"')] #cuts link to where it ends
 
         #get movie information (director, year, poster if desired)
-        movieInfo = getMovieInfo(movieLink, showPosters)
+        movieInfo = get_movie_info(movieLink, showPosters)
 
         movieName = movieInfo[0]
         print(movieName) 
@@ -130,72 +131,58 @@ def buildOverlapHTML(list, usernames, showPosters):
     outputHTML.close()
     outlineFile.close()
 
-#return name of movie, year, director, and poster link in 4 element array
+def get_movie_info(movie_link: str, show_poster: bool=False):
+    """
+    Obtains movie info for given movie.
 
-def getMovieInfo(movieLink, showPosters):
+    Parameters:
+        movie_link: Letterboxd link of movie.
+        show_poster: Show movie posters in result.
+    
+    Returns:
+        movie_info (dict): Dictionary containing 'name', 'year', 'director', 'rating', and (optionally) 'poster'.
+    
+    """
 
     #create request
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3'}
-    req = urllib.request.Request(url = movieLink, headers=headers)
+    req = Request(url = movie_link, headers=headers)
+    html = urlopen(req).read()
 
-    #get html
-    htmlString = urllib.request.urlopen(req).read().decode("utf-8")
-    htmlString = htmlString[htmlString.find('<head>'):htmlString.find('<script>')] #chop off unneccessary portions of
+    # get movie info
+    movie_info = {}
+    soup = BeautifulSoup(html, 'html.parser')
 
-    #get film's name
-    name = ""
-    try:
-        nameIndex = htmlString.find('property="og:title" content="')+len('property="og:title" content="')
-        if nameIndex == -1:
-            raise Exception
-        name = htmlString[nameIndex:]
-        nameEndIndex = name.find(' (')
-        if name[nameEndIndex + len(' (xxxx')] != ')': #checks that this is year paren, not paren in title
-            nameEndIndex = name[nameEndIndex+1:].find(' (')
-        name = name[:name.find(' (')] # (?) change to :nameEndIndex
-    except Exception as e:
-        print("name error: " +str(e)+" for "+name)
-        name = "Name not found"
+    name_year = soup.find("meta", property="og:title")['content']
+    name = name_year[:-7] # select name
+    year = name_year[-6:] # select year
 
-    #get film's year
-    year = ""
-    try:
-        yearIndex = nameIndex + len(name) + len(' (')
-        if yearIndex == -1:
-            raise Exception
-        year = htmlString[yearIndex:yearIndex+4]
-    except Exception as e:
-        print("year error: " +str(e)+" for "+name)
-        year = "xxxx"
+    director = soup.find("meta", attrs={'name':"twitter:data1"})['content']
+
+    rating = soup.find("meta", attrs={'name':"twitter:data2"})['content']
+
+    movie_info["name"] = name
+    movie_info["year"] = year
+    movie_info["director"] = director
+    movie_info["rating"] = rating
+
+
+    if show_poster:
         
-    #get director(s)
-    directors = ""
-    try:
-        directorIndex = htmlString.find('content="Directed by" /><meta name="twitter:data') + len('content="Directed by" /><meta name="twitter:datax" content="')
-        if directorIndex == -1:
-            raise Exception
-        directors = htmlString[directorIndex:] #set directors to rest of string
-        directors = directors[:directors.find('"')] #chop off rest at quotation
-    except Exception as e:
-        print("director error: " +str(e)+" for "+name)
-        directors = "Not found"
-
-    #get poster (if desired) 
-    if showPosters:
-        
-        posterLink = ""
+        poster_link = ""
         try:
             if name.__contains__('&#039;'):
                 while name.__contains__('&#039;'):
                     name = name[:name.find('&#039;')] + "'"+ name[name.find('&#039;')+len('&#039;'):]
-            posterLink = imdbapi.get_poster(name +" "+ year)
+            poster_link = imdbapi.get_poster(name +" "+ year)
         except Exception as e:
             print("poster error: " +str(e)+" for "+name)
-            posterLink = 'https://s.ltrbxd.com/static/img/empty-poster-500.825678f0.png' #return black poster later
-        return [name, year, directors, posterLink]  
-    else:
-        return [name, year, directors]
+            poster_link = 'https://s.ltrbxd.com/static/img/empty-poster-500.825678f0.png' #return black poster later
 
+        movie_info["poster"] = poster_link
+    
+    return movie_info
+        
 
 #if empty path, rerender to form
 @app.route('/', methods = ["GET", "POST"])
@@ -221,10 +208,10 @@ def enter():
             usernames.append(request.form.get("usr"+str(i+1)))
 
         #gets overlap of movies as array of html chunks
-        intersection = getOverlap(usernames)
+        intersection = get_overlap(usernames)
         
         #builds html from overlap
-        buildOverlapHTML(intersection, usernames, showPosters)
+        build_overlap_html(intersection, usernames, showPosters)
         
         return render_template("watchlist.html") #display watchlist
     return redirect('/')
