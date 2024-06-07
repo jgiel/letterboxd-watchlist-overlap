@@ -2,11 +2,13 @@
 #sort by runtime, year, etc.
 #fix text errors for special characters (salo)
 #handle incorrect lb username
+
 from urllib.request import Request, urlopen
+
 from bs4 import BeautifulSoup
 from flask import Flask, request, render_template, redirect
-from waitress import serve
 from movieposters import imdbapi
+from waitress import serve
 
 
 TEMPLATES_AUTO_RELOAD = True
