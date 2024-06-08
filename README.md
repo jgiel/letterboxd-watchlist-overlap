@@ -4,12 +4,10 @@ Python program that takes multiple Letterboxd usernames and displays the overlap
 
 # Execution
 To install the necessary packages, run  
-`pip3 install flask`  
-`pip3 install beautifulsoup4`  
-`pip3 install watiress`  
+`pip install -r requirements.txt` 
 
 Then run with   
-`python3 main.py `  
+`python3 src/form.py `  
 
 Enter `localhost:8080` in your browser to go to the local webpage, then enter your desired Letterboxd usernames
 - If you choose to display posters, please be aware that it may take a while to load
