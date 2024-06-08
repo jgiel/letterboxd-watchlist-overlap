@@ -41,6 +41,7 @@ def enter():
         for i in range(USER_AMOUNT):
             usernames.append(request.form.get("usr" + str(i + 1)))
 
+        print("Getting movies from Letterboxd watchlists...")
         # gets overlap of movies as array of html chunks
         intersection = get_watchlist_overlap(usernames)
 
