@@ -7,24 +7,24 @@
 
 
 
-    <form action="/showoverlap" method="post" style="margin-left: auto; margin-right:auto; text-align:center; margin-top:3%">
+    <form action="/showoverlap" method="get" style="margin-left: auto; margin-right:auto; text-align:center; margin-top:3%">
         {%for i in range(1, user_amount+1)%}
-            <input type="text" id="{{ 'username' ~ i }}" name="{{ 'usr' ~ i }}" placeholder = "{{ 'Letterboxd User ' ~ i }}">
+            <input type="text" id="{{ 'username' ~ i }}" name="username" placeholder = "{{ 'Letterboxd User ' ~ i }}">
         {%endfor%}
         <div style="margin-left: auto; margin-right:auto; text-align:center; margin-top:.25%">
         
-        <button type = "submit" name ="show_poster" value="False">Show Overlap With No Posters</button>
-        <button type = "submit" name="show_poster" value="True">Show Overlap With Posters (slow)</button>
+        <button type = "submit" formethod="get" name ="show_posters" value="False">Show Overlap With No Posters</button>
+        <button type = "submit" formethod="get" name="show_posters" value="True">Show Overlap With Posters (slow)</button>
         </div>
         
     </form>
 
 
-    <form action="/add" method="post" style="margin-left: auto; margin-right:auto; text-align:center; margin-top:0%">
+    <form action="/add" method="get" style="margin-left: auto; margin-right:auto; text-align:center; margin-top:0%">
         <button type = "submit" data-inline="true">Add user</button>
     </form>
         
-    <form action="/remove" method="post" style="margin-left: auto; margin-right:auto; text-align:center; margin-top:0%">
+    <form action="/remove" method="get" style="margin-left: auto; margin-right:auto; text-align:center; margin-top:0%">
         <button type = "submit" data-inline="true">Remove user</button>
     </form>
 
