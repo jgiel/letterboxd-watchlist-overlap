@@ -5,7 +5,7 @@ from flask import Flask, redirect, render_template, request, session
 from letterboxd_scraper import get_watchlist_overlap
 
 
-PORT = 8080
+PORT = 5000
 
 app = Flask(__name__, template_folder=dirname(abspath(__file__)) + "/templates")
 app.secret_key = "dev"
@@ -52,4 +52,4 @@ def removeUser():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True,host='0.0.0.0',port=PORT)
