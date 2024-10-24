@@ -17,7 +17,7 @@ def form():
 
 
 @app.route("/showoverlap", methods=["GET"])
-def enter():
+async def enter():
     if request.args["show_posters"] == "True":
         showPosters = True
     else:
@@ -26,7 +26,7 @@ def enter():
     usernames = request.args.getlist("username")
 
     print("Getting movies from Letterboxd watchlists...")
-    movies = get_watchlist_overlap(usernames, showPosters)
+    movies = await get_watchlist_overlap(usernames, showPosters)
     print("DONE")
 
     return render_template(
@@ -52,4 +52,4 @@ def removeUser():
 
 
 if __name__ == "__main__":
-    app.run(debug=True,host='0.0.0.0',port=PORT)
+    app.run(debug=True, host="0.0.0.0", port=PORT)

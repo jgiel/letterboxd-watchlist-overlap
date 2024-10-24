@@ -1,15 +1,19 @@
 from urllib.request import Request, urlopen
 
+import aiohttp
 from bs4 import BeautifulSoup
-from movieposters import imdbapi
+# from movieposters import imdbapi
+import async_imdbapi
+import asyncio
 
+from time import time
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3"
 }
 
 
-def get_movie_info(movie_link: str, show_poster: bool = False):
+async def get_movie_info(session, semaphore, movie_link: str, show_poster: bool = False):
     """
     Obtains movie info for given movie.
 
@@ -21,45 +25,51 @@ def get_movie_info(movie_link: str, show_poster: bool = False):
         movie_info (dict): Dictionary containing 'name', 'year', 'director', 'rating', 'link', and (optionally) 'poster'.
 
     """
-
+    tic = time()
     # create request
-    req = Request(url=movie_link, headers=HEADERS)
-    html = urlopen(req).read()
+    async with semaphore and session.get(url=movie_link, headers=HEADERS) as response:
+    # html = urlopen(req).read()
 
-    # get movie info
-    movie_info = {}
-    soup = BeautifulSoup(html, "html.parser")
+        # get movie info
+        movie_info = {}
+        soup = BeautifulSoup(await response.text(), "html.parser")
 
-    name_year = soup.find("meta", property="og:title")["content"]
-    name = name_year[:-7]  # select name
-    year = name_year[-6:]  # select year
+        name_and_year = soup.find("meta", property="og:title")["content"]
+        name = name_and_year[:-7]  # select name
+        year = name_and_year[-6:]  # select year
 
-    director = soup.find("meta", attrs={"name": "twitter:data1"})["content"]
+        director = soup.find("meta", attrs={"name": "twitter:data1"})["content"]
 
-    rating = soup.find("meta", attrs={"name": "twitter:data2"})["content"]
+        rating = soup.find("meta", attrs={"name": "twitter:data2"})["content"]
 
-    movie_info["name"] = name
-    movie_info["year"] = year
-    movie_info["director"] = director
-    movie_info["rating"] = rating
-    movie_info["link"] = movie_link
+        movie_info["name"] = name
+        movie_info["year"] = year
+        movie_info["director"] = director
+        movie_info["rating"] = rating
+        movie_info["link"] = movie_link
 
-    if show_poster:
-        poster_link = ""
-        try:
-            if name.__contains__("&#039;"):
-                while name.__contains__("&#039;"):
-                    name = (
-                        name[: name.find("&#039;")]
-                        + "'"
-                        + name[name.find("&#039;") + len("&#039;") :]
-                    )
-            poster_link = imdbapi.get_poster(name + " " + year)
-        except Exception as e:
-            print("poster error: " + str(e) + " for " + name)
-            poster_link = "https://s.ltrbxd.com/static/img/empty-poster-500.825678f0.png"  # return black poster later
+        if show_poster:
+            poster_link = ""
+            try:
+                # replace apostrophes (not necessary w bs4?)
+                # if name.__contains__("&#039;"):
+                #     while name.__contains__("&#039;"):
+                #         name = (
+                #             name[: name.find("&#039;")]
+                #             + "'"
+                #             + name[name.find("&#039;") + len("&#039;") :]
+                #         )
+                poster_link = await async_imdbapi.get_poster_from_title(session, name + " " + year)
+            except Exception as e:
+                print("poster error: " + str(e) + " for " + name)
+                poster_link = "https://s.ltrbxd.com/static/img/empty-poster-500.825678f0.png"  # return black poster later
 
-        movie_info["poster"] = poster_link
+            movie_info["poster"] =  poster_link
+            print(f"got poster link for {movie_info["name"]}: {poster_link}")
+
+        print(f"retrieved info for {movie_info["name"]} in {time()-tic}")
+        with open("movie_info.txt", "a") as f:
+            f.write(str(movie_info) + "\n")
 
     return movie_info
 
@@ -75,14 +85,13 @@ def get_watchlist(username: str):
         watchlist: List of Letterboxd links to films in user's watchlist
 
     """
-
     current_page = 1
 
     watchlist = []
 
     while True:
         # create request to letterboxd url HTML
-
+        print(f"getting watchlist of {username}, page {current_page}")
         url = (
             "https://www.letterboxd.com/"
             + username
@@ -109,7 +118,7 @@ def get_watchlist(username: str):
             # print("page " + str(current_page) + "\n")
 
 
-def get_watchlist_overlap(usernames: list, show_posters: bool):
+async def get_watchlist_overlap(usernames: list, show_posters: bool):
     """
     Gets overlap of watchlists of given users.
 
@@ -121,10 +130,18 @@ def get_watchlist_overlap(usernames: list, show_posters: bool):
         watchlist_overlap (list): List of dicts containing 'name', 'year', 'director', 'rating', and (optionally) 'poster'..
 
     """
-
+    print("getting overlap")
+    print(f"getting watchlist for {usernames[0]}")
     overlap_links = get_watchlist(usernames[0])
     for i in range(1, len(usernames)):
-        overlap_links = list(set(overlap_links) & set(get_watchlist(usernames[i])))
+        print(f"getting overlap with {usernames[i]}")
 
-    overlap = [get_movie_info(link, show_posters) for link in overlap_links]
+        overlap_links = list(set(overlap_links) & set(get_watchlist(usernames[i])))
+        print(f"DONE getting overlap with {usernames[i]}")
+
+    semaphore = asyncio.Semaphore(20) # limit to 5 concurrent requests
+    async with aiohttp.ClientSession(headers=HEADERS) as session:
+        overlap = await asyncio.gather(*[get_movie_info(session, semaphore, link, show_posters) for link in overlap_links])
+    print("done getting overlap")
+
     return overlap
