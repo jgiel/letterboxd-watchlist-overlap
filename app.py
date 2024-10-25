@@ -1,7 +1,9 @@
 # TODO: throw error / display when entered user does not exist, no/1 user entered
 # TODO: implement tests
+# TODO: avoid getting blocked from IMDb (proxies?)
 
 from os.path import abspath, dirname
+from time import time
 
 from flask import Flask, redirect, render_template, request, session
 
@@ -29,8 +31,11 @@ async def enter():
     usernames = request.args.getlist("username")
 
     logger.info(f"Finding overlap between {usernames}")
+
+    tic = time()
     movies = await get_watchlist_overlap(usernames, show_posters)
-    logger.info(f"DONE")
+
+    logger.info(f"DONE in {time()-tic} seconds.")
 
     return render_template(
         "watchlist.html",
@@ -55,4 +60,4 @@ def removeUser():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=PORT)
+    app.run(host="0.0.0.0", port=PORT)
