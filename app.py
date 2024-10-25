@@ -5,8 +5,8 @@ from os.path import abspath, dirname
 
 from flask import Flask, redirect, render_template, request, session
 
-from letterboxd_api import get_watchlist_overlap
-from constants import logger 
+from constants import logger
+from letterboxd_scraper import get_watchlist_overlap
 
 PORT = 5000
 

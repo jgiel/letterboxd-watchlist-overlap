@@ -4,8 +4,8 @@ import aiohttp
 import requests
 from bs4 import BeautifulSoup
 
-import imdb_api
 from constants import HEADERS, logger
+from imdb_scraper import get_poster_from_title
 
 
 async def get_movie_info(
@@ -69,15 +69,11 @@ async def get_movie_info(
             poster_link = ""
             try:
 
-                poster_link = await imdb_api.get_poster_from_title(
-                    session, name + " " + year
-                )
+                poster_link = await get_poster_from_title(session, name + " " + year)
             except Exception as e:
                 logger.exception(f"Error obtaining poster for {name}: " + str(e))
 
             movie_info["poster"] = poster_link
-
-    
 
     return movie_info
 
