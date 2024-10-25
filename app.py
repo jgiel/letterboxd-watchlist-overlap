@@ -1,9 +1,12 @@
-from os.path import dirname, abspath
+# TODO: throw error / display when entered user does not exist, no/1 user entered
+# TODO: implement tests
+
+from os.path import abspath, dirname
 
 from flask import Flask, redirect, render_template, request, session
 
-from letterboxd_scraper import get_watchlist_overlap
-
+from letterboxd_api import get_watchlist_overlap
+from constants import logger 
 
 PORT = 5000
 
@@ -19,15 +22,15 @@ def form():
 @app.route("/showoverlap", methods=["GET"])
 async def enter():
     if request.args["show_posters"] == "True":
-        showPosters = True
+        show_posters = True
     else:
-        showPosters = False
+        show_posters = False
 
     usernames = request.args.getlist("username")
 
-    print("Getting movies from Letterboxd watchlists...")
-    movies = await get_watchlist_overlap(usernames, showPosters)
-    print("DONE")
+    logger.info(f"Finding overlap between {usernames}")
+    movies = await get_watchlist_overlap(usernames, show_posters)
+    logger.info(f"DONE")
 
     return render_template(
         "watchlist.html",

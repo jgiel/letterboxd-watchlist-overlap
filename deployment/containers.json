@@ -1,0 +1,8 @@
+{
+    "flask": {
+        "image": ":watchlist-overlap-service.watchlist-overlap-container.7",
+        "ports": {
+            "5000": "HTTP"
+        }
+    }
+}
