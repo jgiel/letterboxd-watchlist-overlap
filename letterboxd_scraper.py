@@ -71,7 +71,7 @@ async def get_movie_info(
 
                 poster_link = await get_poster_from_title(session, name + " " + year)
             except Exception as e:
-                logger.exception(f"Error obtaining poster for {name}: " + str(e))
+                logger.info(f"Error obtaining poster for {name}: " + str(e))
 
             movie_info["poster"] = poster_link
 
@@ -160,7 +160,7 @@ async def get_watchlist_overlap(usernames: list, show_posters: bool):
     """
 
     letterboxd_semaphore = asyncio.Semaphore(20)  # limit to 5 concurrent requests
-    imdb_semaphore = asyncio.Semaphore(20)
+    imdb_semaphore = asyncio.Semaphore(8)
     async with aiohttp.ClientSession(headers=HEADERS) as session:
 
         # get overlap between users' watchlists
