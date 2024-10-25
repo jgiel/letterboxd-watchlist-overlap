@@ -2,18 +2,24 @@ from urllib.request import Request, urlopen
 
 import aiohttp
 from bs4 import BeautifulSoup
+
 # from movieposters import imdbapi
 import async_imdbapi
 import asyncio
+import requests
 
 from time import time
 
+
+# TODO: put in external file
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.3"
 }
 
 
-async def get_movie_info(session, semaphore, movie_link: str, show_poster: bool = False):
+async def get_movie_info(
+    session, letterboxd_semaphore, imdb_semaphore, movie_link: str, show_poster: bool = False
+):
     """
     Obtains movie info for given movie.
 
@@ -27,8 +33,8 @@ async def get_movie_info(session, semaphore, movie_link: str, show_poster: bool 
     """
     tic = time()
     # create request
-    async with semaphore and session.get(url=movie_link, headers=HEADERS) as response:
-    # html = urlopen(req).read()
+    async with letterboxd_semaphore and session.get(url=movie_link, headers=HEADERS) as response:
+        # html = urlopen(req).read()
 
         # get movie info
         movie_info = {}
@@ -48,10 +54,11 @@ async def get_movie_info(session, semaphore, movie_link: str, show_poster: bool 
         movie_info["rating"] = rating
         movie_info["link"] = movie_link
 
-        if show_poster:
+    if show_poster:
+        async with imdb_semaphore:
             poster_link = ""
             try:
-                # replace apostrophes (not necessary w bs4?)
+                # replace apostrophes (TODO: not necessary w bs4?)
                 # if name.__contains__("&#039;"):
                 #     while name.__contains__("&#039;"):
                 #         name = (
@@ -59,12 +66,14 @@ async def get_movie_info(session, semaphore, movie_link: str, show_poster: bool 
                 #             + "'"
                 #             + name[name.find("&#039;") + len("&#039;") :]
                 #         )
-                poster_link = await async_imdbapi.get_poster_from_title(session, name + " " + year)
+                poster_link = await async_imdbapi.get_poster_from_title(
+                    session, name + " " + year
+                )
             except Exception as e:
                 print("poster error: " + str(e) + " for " + name)
                 poster_link = "https://s.ltrbxd.com/static/img/empty-poster-500.825678f0.png"  # return black poster later
 
-            movie_info["poster"] =  poster_link
+            movie_info["poster"] = poster_link
             print(f"got poster link for {movie_info["name"]}: {poster_link}")
 
         print(f"retrieved info for {movie_info["name"]} in {time()-tic}")
@@ -74,7 +83,21 @@ async def get_movie_info(session, semaphore, movie_link: str, show_poster: bool 
     return movie_info
 
 
-def get_watchlist(username: str):
+async def get_movies_from_page(session, semaphore, page_link):
+
+    async with semaphore and session.get(url=page_link) as response:
+
+        # parse with bs4
+        soup = BeautifulSoup(await response.text(), "html.parser")
+        containers = soup.find_all("li", class_="poster-container")
+
+        return [
+            "https://letterboxd.com" + container.find("div")["data-target-link"]
+            for container in containers
+        ]
+
+
+async def get_watchlist(session, semaphore, username: str):
     """
     Obtains list of all links to movies in user's watchlist.
 
@@ -85,37 +108,31 @@ def get_watchlist(username: str):
         watchlist: List of Letterboxd links to films in user's watchlist
 
     """
-    current_page = 1
 
-    watchlist = []
+    # find num of pages in watchlist
+    req = requests.get(url=f"https://letterboxd.com/{username}/watchlist/")
+    soup = BeautifulSoup(req.text, "html.parser")
 
-    while True:
-        # create request to letterboxd url HTML
-        print(f"getting watchlist of {username}, page {current_page}")
-        url = (
-            "https://www.letterboxd.com/"
-            + username
-            + "/watchlist/page/"
-            + str(current_page)
-            + "/"
-        )
-        req = Request(url=url, headers=HEADERS)
-        html = urlopen(req).read()
+    paginations = soup.find_all("li", class_="paginate-page")
 
-        # parse with bs4
-        soup = BeautifulSoup(html, "html.parser")
-        containers = soup.find_all("li", class_="poster-container")
-        for container in containers:
-            watchlist.append(
-                "https://letterboxd.com" + container.find("div")["data-target-link"]
+    num_pages = int(paginations[-1].string)
+
+    results = await asyncio.gather(
+        *(
+            get_movies_from_page(
+                session,
+                semaphore,
+                f"https://letterboxd.com/{username}/watchlist/page/{page}/",
             )
-            # print(container.find("div")["data-target-link"])
-
-        if not containers:
-            return watchlist
-        else:
-            current_page += 1
-            # print("page " + str(current_page) + "\n")
+            for page in range(1, num_pages + 1)
+    )
+    )
+    #  unpack to 1d list (TODO: find better way to do this)
+    movie_links = []
+    for result in results:
+        movie_links.extend(result)
+    
+    return movie_links
 
 
 async def get_watchlist_overlap(usernames: list, show_posters: bool):
@@ -132,16 +149,26 @@ async def get_watchlist_overlap(usernames: list, show_posters: bool):
     """
     print("getting overlap")
     print(f"getting watchlist for {usernames[0]}")
-    overlap_links = get_watchlist(usernames[0])
-    for i in range(1, len(usernames)):
-        print(f"getting overlap with {usernames[i]}")
 
-        overlap_links = list(set(overlap_links) & set(get_watchlist(usernames[i])))
-        print(f"DONE getting overlap with {usernames[i]}")
-
-    semaphore = asyncio.Semaphore(20) # limit to 5 concurrent requests
+    letterboxd_semaphore = asyncio.Semaphore(20)  # limit to 5 concurrent requests
+    imdb_semaphore = asyncio.Semaphore(3)
     async with aiohttp.ClientSession(headers=HEADERS) as session:
-        overlap = await asyncio.gather(*[get_movie_info(session, semaphore, link, show_posters) for link in overlap_links])
+
+        overlap_links = await get_watchlist(session, letterboxd_semaphore, usernames[0]) # use different semaphore here?
+        print("OVERLAP LINKS: ", overlap_links)
+        for i in range(1, len(usernames)):
+            print(f"getting overlap with {usernames[i]}")
+
+            overlap_links = list(set(overlap_links) & set(await get_watchlist(session, letterboxd_semaphore, usernames[i])))
+            print(f"DONE getting overlap with {usernames[i]}")
+
+        
+        overlap = await asyncio.gather(
+            *[
+                get_movie_info(session, letterboxd_semaphore, imdb_semaphore, link, show_posters)
+                for link in overlap_links
+            ]
+        )
     print("done getting overlap")
 
     return overlap

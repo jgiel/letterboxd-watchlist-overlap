@@ -73,8 +73,8 @@ def get_imdb_link_from_relative(link):
 async def get_link_from_search_results(response, title):
 
     soup = BeautifulSoup(await response.text(), features="lxml")
-    with open(f"response_{title}.html", "w") as f:
-        f.write(await response.text())
+    # with open(f"response_{title}.html", "w") as f:
+    #     f.write(await response.text())
     a_tag = soup.find("a", href=_is_relative_link_to_title)
     if not a_tag:
         raise Exception("movie not found")
@@ -99,7 +99,7 @@ async def get_link_from_title(session, title):
 # main method
 
 
-async def get_poster_from_title(session, title):# semaphore, title):
+async def get_poster_from_title(session, title):  # semaphore, title):
     # async with semaphore:
     link = await get_link_from_title(session, title)
     return await get_poster_from_link(session, link)
