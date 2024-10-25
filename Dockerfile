@@ -15,9 +15,9 @@ COPY requirements.txt .
 RUN pip install -r requirements.txt
 
 # Copy the content of the local src directory to the working directory
-COPY app.py letterboxd_scraper.py imdb_scraper.py errors.py constants.py ./
+COPY letterboxd-watchlist-overlap/*.py letterboxd-watchlist-overlap/
 COPY templates/*.html templates/
 
 # Specify the command to run on container start
-CMD [ "python", "./app.py" ]
+CMD [ "python", "./letterboxd-watchlist-overlap/app.py" ]
 
