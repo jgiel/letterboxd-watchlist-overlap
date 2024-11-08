@@ -1,14 +1,19 @@
-from os.path import dirname, abspath
+# TODO: throw error / display when entered user does not exist, no/1 user entered
+# TODO: implement tests
+# TODO: avoid getting blocked from IMDb (proxies?)
+
+from os.path import abspath, dirname
+from time import time
 
 from flask import Flask, redirect, render_template, request, session
 
+from constants import logger
 from letterboxd_scraper import get_watchlist_overlap
-
 
 PORT = 5000
 
-app = Flask(__name__, template_folder=dirname(abspath(__file__)) + "/templates")
-app.secret_key = "dev"
+app = Flask(__name__, template_folder=dirname(dirname(abspath(__file__)))+"/templates")
+app.secret_key = "SECRET"
 
 
 @app.route("/", methods=["GET"])
@@ -17,17 +22,20 @@ def form():
 
 
 @app.route("/showoverlap", methods=["GET"])
-def enter():
+async def enter():
     if request.args["show_posters"] == "True":
-        showPosters = True
+        show_posters = True
     else:
-        showPosters = False
+        show_posters = False
 
     usernames = request.args.getlist("username")
 
-    print("Getting movies from Letterboxd watchlists...")
-    movies = get_watchlist_overlap(usernames, showPosters)
-    print("DONE")
+    logger.info(f"Finding overlap between {usernames}.")
+
+    tic = time()
+    movies = await get_watchlist_overlap(usernames, show_posters)
+
+    logger.info(f"DONE in {time()-tic} seconds.")
 
     return render_template(
         "watchlist.html",
@@ -52,4 +60,4 @@ def removeUser():
 
 
 if __name__ == "__main__":
-    app.run(debug=True,host='0.0.0.0',port=PORT)
+    app.run(host="0.0.0.0", port=PORT)
