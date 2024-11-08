@@ -9,7 +9,6 @@ WORKDIR /app
 
 # Copy the dependencies file to the working directory
 COPY requirements.txt .
-# COPY letterboxd_scraper.py
 
 # Install any dependencies
 RUN pip install -r requirements.txt

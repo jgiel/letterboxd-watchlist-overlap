@@ -5,6 +5,3 @@ class MovieNotFound(Exception):
 class PosterNotFound(Exception):
     pass
 
-
-# class LetterboxdUserNotFound(Exception):
-#     pass

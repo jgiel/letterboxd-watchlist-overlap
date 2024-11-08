@@ -74,8 +74,6 @@ async def get_link_from_search_results(response):
         IMDb link of movie.
     """
     soup = BeautifulSoup(await response.text(), features="lxml")
-    # with open(f"response_{title}.html", "w") as f:
-    #     f.write(await response.text())
     a_tag = soup.find("a", href=_is_relative_link_to_title)
     if not a_tag:
         raise MovieNotFound
@@ -102,7 +100,7 @@ async def get_link_from_title(session, title: str):
         return link
 
 
-async def get_poster_from_title(session, title: str):  # semaphore, title):
+async def get_poster_from_title(session, title: str):  
     """
     Gets link to poster from movie title.
 
@@ -112,6 +110,5 @@ async def get_poster_from_title(session, title: str):  # semaphore, title):
     Returns:
         Link to movie poster.
     """
-    # async with semaphore:
     link = await get_link_from_title(session, title)
     return await get_poster_from_link(session, link)

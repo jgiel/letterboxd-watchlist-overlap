@@ -13,7 +13,7 @@ from letterboxd_scraper import get_watchlist_overlap
 PORT = 5000
 
 app = Flask(__name__, template_folder=dirname(dirname(abspath(__file__)))+"/templates")
-app.secret_key = "dev"
+app.secret_key = "SECRET"
 
 
 @app.route("/", methods=["GET"])
